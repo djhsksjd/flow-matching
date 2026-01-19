@@ -1,7 +1,7 @@
 """
 Generate Samples from Trained Model
 
-This script loads a trained Flow Matching model and generates new samples.
+This script loads a trained Flow Matching model and generates new face samples.
 Usage: python generate_samples.py [--checkpoint PATH] [--num_samples N] [--num_steps N]
 """
 
@@ -11,8 +11,6 @@ import argparse
 from flowmatching import UNet, FlowMatching
 from flowmatching.utils import (
     visualize_samples,
-    save_samples_as_images,
-    save_samples_as_numpy,
     load_checkpoint
 )
 from flowmatching.config import MODEL_CONFIG, SAMPLE_CONFIG, PATHS
@@ -27,11 +25,7 @@ def main():
     parser.add_argument('--num_steps', type=int, default=SAMPLE_CONFIG['num_steps'],
                        help=f'Number of integration steps (default: {SAMPLE_CONFIG["num_steps"]})')
     parser.add_argument('--output_dir', type=str, default=None,
-                       help='Output directory (default: results/generated_samples)')
-    parser.add_argument('--save_individual', action='store_true',
-                       help='Save individual images')
-    parser.add_argument('--save_numpy', action='store_true',
-                       help='Save as numpy array')
+                       help='Output directory (default: results)')
     
     args = parser.parse_args()
     
@@ -67,7 +61,7 @@ def main():
     
     # Output directory
     if args.output_dir is None:
-        args.output_dir = os.path.join(PATHS['results_dir'], 'generated_samples')
+        args.output_dir = PATHS['results_dir']
     os.makedirs(args.output_dir, exist_ok=True)
     
     # Create model
@@ -83,10 +77,18 @@ def main():
     flow_matching = FlowMatching(model, device)
     
     # Generate samples
-    print(f"\nGenerating {args.num_samples} samples with {args.num_steps} steps...")
-    samples = flow_matching.sample(args.num_samples, num_steps=args.num_steps)
+    image_size = SAMPLE_CONFIG['image_size']
+    channels = MODEL_CONFIG['in_channels']
     
-    # Save grid visualization
+    print(f"\nGenerating {args.num_samples} samples with {args.num_steps} steps...")
+    samples = flow_matching.sample(
+        args.num_samples, 
+        num_steps=args.num_steps,
+        image_size=image_size,
+        channels=channels
+    )
+    
+    # Save grid visualization only
     grid_path = os.path.join(args.output_dir, 'generated_samples_grid.png')
     visualize_samples(
         samples,
@@ -95,30 +97,11 @@ def main():
         title=f"Generated Samples (Epoch {epoch})"
     )
     
-    # Save individual images
-    if args.save_individual:
-        individual_dir = os.path.join(args.output_dir, 'individual')
-        save_samples_as_images(
-            samples,
-            individual_dir,
-            prefix='generated',
-            start_idx=0
-        )
-    
-    # Save as numpy array
-    if args.save_numpy:
-        numpy_path = os.path.join(args.output_dir, 'generated_samples.npy')
-        save_samples_as_numpy(samples, numpy_path)
-    
     print("\n" + "=" * 60)
     print("Generation completed!")
     print("=" * 60)
     print(f"\nResults saved to: {args.output_dir}/")
     print(f"  - Grid: {grid_path}")
-    if args.save_individual:
-        print(f"  - Individual images: {os.path.join(args.output_dir, 'individual')}/")
-    if args.save_numpy:
-        print(f"  - Numpy array: {numpy_path}")
 
 
 if __name__ == '__main__':

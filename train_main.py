@@ -1,17 +1,15 @@
 """
-Main Training Script for Flow Matching on MNIST
+Main Training Script for Flow Matching on ImageNet
 
-This script trains a Flow Matching model to generate MNIST digit images.
+This script trains a Flow Matching model to generate images using ImageNet dataset.
 Usage: python train_main.py
 """
 
 import torch
 import os
-from flowmatching import UNet, FlowMatching, load_mnist_data, train_flow_matching
+from flowmatching import UNet, FlowMatching, load_imagenet_data, load_face_data, train_flow_matching
 from flowmatching.utils import (
     visualize_samples,
-    save_samples_as_images,
-    save_samples_as_numpy,
     count_parameters
 )
 from flowmatching.config import MODEL_CONFIG, TRAIN_CONFIG, DATA_CONFIG, PATHS, SAMPLE_CONFIG
@@ -20,7 +18,7 @@ from flowmatching.config import MODEL_CONFIG, TRAIN_CONFIG, DATA_CONFIG, PATHS, 
 def main():
     """Main training function."""
     print("=" * 60)
-    print("Flow Matching for MNIST Image Generation")
+    print("Flow Matching for ImageNet Image Generation")
     print("=" * 60)
     
     # Device
@@ -30,27 +28,57 @@ def main():
     # Create results directory
     results_dir = PATHS['results_dir']
     os.makedirs(results_dir, exist_ok=True)
-    os.makedirs(os.path.join(results_dir, 'final_samples'), exist_ok=True)
     print(f"Results will be saved to: {results_dir}/")
     
-    # Load data
-    print("\nLoading MNIST dataset...")
-    train_loader, test_loader = load_mnist_data(
-        batch_size=DATA_CONFIG['batch_size'],
-        data_dir=DATA_CONFIG['data_dir']
-    )
-    print(f"Training samples: {len(train_loader.dataset)}")
-    print(f"Test samples: {len(test_loader.dataset)}")
+    # Load data based on dataset type
+    dataset_type = DATA_CONFIG.get('dataset_type', 'imagenet')
+    print(f"\nLoading {dataset_type} dataset...")
+    
+    try:
+        if dataset_type == 'imagenet':
+            train_loader = load_imagenet_data(
+                batch_size=DATA_CONFIG['batch_size'],
+                data_dir=DATA_CONFIG['data_dir'],
+                image_size=DATA_CONFIG['image_size'],
+                split='train'
+            )
+            print(f"Training samples: {len(train_loader.dataset)}")
+            print(f"Number of classes: {len(train_loader.dataset.classes)}")
+        elif dataset_type in ['celeba', 'face_folder']:
+            train_loader = load_face_data(
+                batch_size=DATA_CONFIG['batch_size'],
+                data_dir=DATA_CONFIG['data_dir'],
+                image_size=DATA_CONFIG['image_size'],
+                use_celeba=(dataset_type == 'celeba')
+            )
+            print(f"Training samples: {len(train_loader.dataset)}")
+        else:
+            raise ValueError(f"Unknown dataset_type: {dataset_type}. Use 'imagenet', 'celeba', or 'face_folder'")
+        
+        print(f"Image size: {DATA_CONFIG['image_size']}x{DATA_CONFIG['image_size']}")
+    except Exception as e:
+        print(f"Error loading dataset: {e}")
+        if dataset_type == 'imagenet':
+            print("\nImageNet directory structure should be:")
+            print("  data/imagenet/train/")
+            print("    class1/")
+            print("      img1.JPEG")
+            print("      ...")
+            print("    class2/")
+            print("      ...")
+        return
     
     # Create model
     print("\nCreating model...")
     model = UNet(**MODEL_CONFIG)
     num_params = count_parameters(model)
     print(f"Model parameters: {num_params:,}")
+    print(f"Input channels: {MODEL_CONFIG['in_channels']} (RGB)")
     
     # Train
     print("\nStarting training...")
     print(f"Training configuration:")
+    print(f"  Dataset: {dataset_type}")
     print(f"  Epochs: {TRAIN_CONFIG['num_epochs']}")
     print(f"  Learning rate: {TRAIN_CONFIG['learning_rate']}")
     print(f"  Batch size: {TRAIN_CONFIG['batch_size']}")
@@ -77,31 +105,24 @@ def main():
     # Generate samples with higher quality (more steps)
     num_samples = SAMPLE_CONFIG['num_samples']
     num_steps = SAMPLE_CONFIG['num_steps']
+    image_size = SAMPLE_CONFIG['image_size']
     
     print(f"Generating {num_samples} samples with {num_steps} steps...")
-    samples = flow_matching.sample(num_samples, num_steps=num_steps)
+    samples = flow_matching.sample(
+        num_samples, 
+        num_steps=num_steps,
+        image_size=image_size,
+        channels=MODEL_CONFIG['in_channels']
+    )
     
-    # Save grid visualization
-    grid_path = os.path.join(results_dir, 'final_samples', 'final_samples_grid.png')
+    # Save grid visualization only
+    grid_path = os.path.join(results_dir, 'final_samples_grid.png')
     visualize_samples(
         samples, 
         save_path=grid_path, 
         nrow=8,
-        title=f"Final Generated Samples (Flow Matching)"
+        title=f"Final Generated Samples ({dataset_type.upper()}) - Flow Matching"
     )
-    
-    # Save individual images
-    individual_dir = os.path.join(results_dir, 'final_samples', 'individual')
-    save_samples_as_images(
-        samples, 
-        individual_dir, 
-        prefix='generated',
-        start_idx=0
-    )
-    
-    # Save as numpy array
-    numpy_path = os.path.join(results_dir, 'final_samples', 'final_samples.npy')
-    save_samples_as_numpy(samples, numpy_path)
     
     # Save final checkpoint
     final_checkpoint_path = os.path.join(results_dir, 'checkpoint_final.pt')
@@ -118,8 +139,6 @@ def main():
     print(f"\nResults saved to: {results_dir}/")
     print("\nGenerated files:")
     print(f"  - {grid_path}")
-    print(f"  - {numpy_path}")
-    print(f"  - {individual_dir}/ (individual images)")
     print(f"  - {final_checkpoint_path}")
     print("\nTo generate more samples, use:")
     print("  python generate_samples.py")

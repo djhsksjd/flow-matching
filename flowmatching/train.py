@@ -9,7 +9,7 @@ import torch.optim as optim
 from tqdm import tqdm
 import os
 from .flow_matching import FlowMatching
-from .utils import visualize_samples, save_samples_as_images
+from .utils import visualize_samples
 
 
 def train_flow_matching(
@@ -74,15 +74,15 @@ def train_flow_matching(
             }, checkpoint_path)
             print(f"Saved checkpoint to {checkpoint_path}")
         
-        # Generate and save samples
+        # Generate and save samples (grid only)
         if (epoch + 1) % sample_every == 0:
-            samples = flow_matching.sample(64, num_steps=num_sample_steps)
+            # Use config image size or default to 128x128 for ImageNet
+            from .config import SAMPLE_CONFIG
+            img_size = SAMPLE_CONFIG.get('image_size', (128, 128))
+            samples = flow_matching.sample(64, num_steps=num_sample_steps, 
+                                         image_size=img_size, channels=3)
             save_path = os.path.join(save_dir, f"samples_epoch_{epoch+1}.png")
             visualize_samples(samples, save_path=save_path, nrow=8, 
                             title=f"Generated Samples - Epoch {epoch+1}")
-            
-            # Also save individual images in a subdirectory
-            samples_dir = os.path.join(save_dir, 'individual_samples', f'epoch_{epoch+1}')
-            save_samples_as_images(samples, samples_dir, prefix='sample', start_idx=0)
     
     return flow_matching

@@ -13,7 +13,7 @@ from PIL import Image
 
 def visualize_samples(samples, save_path=None, nrow=8, figsize=(12, 12), title=None):
     """
-    Visualize generated samples and save as image.
+    Visualize generated samples and save as grid image.
     
     Args:
         samples: Tensor of shape [num_samples, channels, height, width]
@@ -24,6 +24,19 @@ def visualize_samples(samples, save_path=None, nrow=8, figsize=(12, 12), title=N
     """
     samples = samples.cpu()
     num_samples = samples.shape[0]
+    
+    # Convert to numpy and handle channels
+    if samples.dim() == 4:
+        if samples.shape[1] == 3:  # RGB
+            # Convert from [B, C, H, W] to [B, H, W, C] for imshow
+            samples_np = samples.permute(0, 2, 3, 1).numpy()
+            cmap = None
+        else:  # Grayscale
+            samples_np = samples.squeeze(1).numpy()  # [B, H, W]
+            cmap = 'gray'
+    else:
+        samples_np = samples.numpy()
+        cmap = 'gray'
     
     ncol = (num_samples + nrow - 1) // nrow
     fig, axes = plt.subplots(nrow, ncol, figsize=figsize)
@@ -37,7 +50,10 @@ def visualize_samples(samples, save_path=None, nrow=8, figsize=(12, 12), title=N
     axes = axes.flatten()
     
     for i in range(num_samples):
-        axes[i].imshow(samples[i].squeeze(), cmap='gray')
+        if cmap is None:  # RGB
+            axes[i].imshow(samples_np[i])
+        else:  # Grayscale
+            axes[i].imshow(samples_np[i], cmap=cmap)
         axes[i].axis('off')
     
     for i in range(num_samples, len(axes)):
@@ -57,57 +73,6 @@ def visualize_samples(samples, save_path=None, nrow=8, figsize=(12, 12), title=N
     return save_path
 
 
-def save_samples_as_images(samples, save_dir, prefix='sample', start_idx=0, format='png'):
-    """
-    Save individual generated samples as separate image files.
-    
-    Args:
-        samples: Tensor of shape [num_samples, channels, height, width]
-        save_dir: Directory to save individual images
-        prefix: Prefix for image filenames
-        start_idx: Starting index for filenames
-        format: Image format ('png', 'jpg', etc.)
-    
-    Returns:
-        List of saved file paths
-    """
-    os.makedirs(save_dir, exist_ok=True)
-    samples = samples.cpu().numpy()
-    saved_paths = []
-    
-    for i in range(samples.shape[0]):
-        # Convert to uint8 [0, 255]
-        img = samples[i].squeeze()
-        img = np.clip(img * 255, 0, 255).astype(np.uint8)
-        
-        # Create PIL Image
-        if len(img.shape) == 2:
-            img_pil = Image.fromarray(img, mode='L')
-        else:
-            img_pil = Image.fromarray(img.transpose(1, 2, 0), mode='RGB')
-        
-        # Save
-        filename = f"{prefix}_{start_idx + i:04d}.{format}"
-        filepath = os.path.join(save_dir, filename)
-        img_pil.save(filepath)
-        saved_paths.append(filepath)
-    
-    print(f"Saved {len(saved_paths)} individual images to {save_dir}")
-    return saved_paths
-
-
-def save_samples_as_numpy(samples, save_path):
-    """
-    Save generated samples as numpy array file.
-    
-    Args:
-        samples: Tensor of shape [num_samples, channels, height, width]
-        save_path: Path to save numpy file (.npy)
-    """
-    samples = samples.cpu().numpy()
-    os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
-    np.save(save_path, samples)
-    print(f"Saved samples array to {save_path}")
 
 
 def count_parameters(model):

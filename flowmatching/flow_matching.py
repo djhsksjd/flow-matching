@@ -106,7 +106,7 @@ class FlowMatching:
         return loss.item()
     
     @torch.no_grad()
-    def sample(self, num_samples, num_steps=100, image_size=(28, 28)):
+    def sample(self, num_samples, num_steps=100, image_size=(64, 64), channels=3):
         """
         Sample images using Euler method for ODE integration.
         
@@ -117,14 +117,15 @@ class FlowMatching:
             num_samples: Number of samples to generate
             num_steps: Number of integration steps
             image_size: Tuple of (height, width) for generated images
+            channels: Number of channels (3 for RGB, 1 for grayscale)
         
         Returns:
-            x: Generated samples (shape: [num_samples, 1, height, width])
+            x: Generated samples (shape: [num_samples, channels, height, width])
         """
         self.model.eval()
         
         # Start from noise
-        x = torch.randn(num_samples, 1, image_size[0], image_size[1], device=self.device)
+        x = torch.randn(num_samples, channels, image_size[0], image_size[1], device=self.device)
         
         # Time steps
         dt = 1.0 / num_steps
@@ -141,7 +142,7 @@ class FlowMatching:
         return x
     
     @torch.no_grad()
-    def sample_ode(self, num_samples, num_steps=100, image_size=(28, 28)):
+    def sample_ode(self, num_samples, num_steps=100, image_size=(64, 64), channels=3):
         """
         Sample using ODE solver (more accurate but slower).
         
@@ -149,19 +150,20 @@ class FlowMatching:
             num_samples: Number of samples to generate
             num_steps: Number of evaluation points for ODE solver
             image_size: Tuple of (height, width) for generated images
+            channels: Number of channels (3 for RGB, 1 for grayscale)
         
         Returns:
-            x: Generated samples (shape: [num_samples, 1, height, width])
+            x: Generated samples (shape: [num_samples, channels, height, width])
         """
         self.model.eval()
         
         # Start from noise
-        x0 = torch.randn(num_samples, 1, image_size[0], image_size[1], device=self.device)
+        x0 = torch.randn(num_samples, channels, image_size[0], image_size[1], device=self.device)
         x0_flat = x0.view(num_samples, -1).cpu().numpy()
         
         # Define ODE function
         def ode_func(t, x_flat):
-            x = torch.from_numpy(x_flat).float().view(num_samples, 1, image_size[0], image_size[1]).to(self.device)
+            x = torch.from_numpy(x_flat).float().view(num_samples, channels, image_size[0], image_size[1]).to(self.device)
             t_tensor = torch.full((num_samples,), t, device=self.device)
             v = self.model(x, t_tensor)
             return v.view(num_samples, -1).cpu().numpy()
@@ -171,7 +173,7 @@ class FlowMatching:
         sol = integrate.solve_ivp(ode_func, [0, 1], x0_flat.flatten(), t_eval=t_eval, method='RK45')
         
         # Get final state
-        x_final = sol.y[:, -1].reshape(num_samples, 1, image_size[0], image_size[1])
+        x_final = sol.y[:, -1].reshape(num_samples, channels, image_size[0], image_size[1])
         x_final = torch.from_numpy(x_final).float().to(self.device)
         x_final = torch.clamp(x_final, 0, 1)
         
