@@ -31,41 +31,57 @@ def main():
     print(f"Results will be saved to: {results_dir}/")
     
     # Load data based on dataset type
-    dataset_type = DATA_CONFIG.get('dataset_type', 'imagenet')
-    print(f"\nLoading {dataset_type} dataset...")
+    dataset_type = DATA_CONFIG.get('dataset_type', 'celeba')
+    print(f"\n{'='*60}")
+    print(f"Loading {dataset_type.upper()} dataset...")
+    print(f"{'='*60}")
     
     try:
-        if dataset_type == 'imagenet':
+        if dataset_type == 'celeba':
+            # CelebA: Large-scale face dataset, auto-downloads
+            train_loader = load_celeba_data(
+                batch_size=DATA_CONFIG['batch_size'],
+                data_dir=DATA_CONFIG['data_dir'],
+                image_size=DATA_CONFIG['image_size'],
+                split='train'
+            )
+            print(f"✅ Training samples: {len(train_loader.dataset):,}")
+            print(f"✅ Image size: {DATA_CONFIG['image_size']}x{DATA_CONFIG['image_size']}")
+        elif dataset_type == 'imagenet':
+            # ImageNet: Requires manual download and setup
             train_loader = load_imagenet_data(
                 batch_size=DATA_CONFIG['batch_size'],
                 data_dir=DATA_CONFIG['data_dir'],
                 image_size=DATA_CONFIG['image_size'],
                 split='train'
             )
-            print(f"Training samples: {len(train_loader.dataset)}")
-            print(f"Number of classes: {len(train_loader.dataset.classes)}")
-        elif dataset_type in ['celeba', 'face_folder']:
+            print(f"✅ Training samples: {len(train_loader.dataset):,}")
+            print(f"✅ Number of classes: {len(train_loader.dataset.classes)}")
+            print(f"✅ Image size: {DATA_CONFIG['image_size']}x{DATA_CONFIG['image_size']}")
+        elif dataset_type == 'face_folder':
+            # Custom face folder
             train_loader = load_face_data(
                 batch_size=DATA_CONFIG['batch_size'],
                 data_dir=DATA_CONFIG['data_dir'],
                 image_size=DATA_CONFIG['image_size'],
-                use_celeba=(dataset_type == 'celeba')
+                use_celeba=False
             )
-            print(f"Training samples: {len(train_loader.dataset)}")
+            print(f"✅ Training samples: {len(train_loader.dataset):,}")
+            print(f"✅ Image size: {DATA_CONFIG['image_size']}x{DATA_CONFIG['image_size']}")
         else:
-            raise ValueError(f"Unknown dataset_type: {dataset_type}. Use 'imagenet', 'celeba', or 'face_folder'")
+            raise ValueError(f"Unknown dataset_type: {dataset_type}. Use 'celeba', 'face_folder', or 'imagenet'")
         
-        print(f"Image size: {DATA_CONFIG['image_size']}x{DATA_CONFIG['image_size']}")
     except Exception as e:
-        print(f"Error loading dataset: {e}")
+        print(f"\n❌ Error loading dataset: {e}")
         if dataset_type == 'imagenet':
-            print("\nImageNet directory structure should be:")
-            print("  data/imagenet/train/")
-            print("    class1/")
-            print("      img1.JPEG")
-            print("      ...")
-            print("    class2/")
-            print("      ...")
+            print("\nImageNet setup instructions:")
+            print("  1. Download ImageNet dataset")
+            print("  2. Organize as: data/imagenet/train/class1/..., class2/..., etc.")
+        elif dataset_type == 'celeba':
+            print("\nCelebA troubleshooting:")
+            print("  1. Check internet connection (requires ~1.3GB download)")
+            print("  2. Ensure sufficient disk space")
+            print("  3. The download will resume if interrupted")
         return
     
     # Create model
@@ -121,7 +137,7 @@ def main():
         samples, 
         save_path=grid_path, 
         nrow=8,
-        title=f"Final Generated Samples ({dataset_type.upper()}) - Flow Matching"
+        title=f"Final Generated Face Samples ({dataset_type.upper()}) - Flow Matching"
     )
     
     # Save final checkpoint

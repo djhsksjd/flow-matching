@@ -13,7 +13,7 @@ MODEL_CONFIG = {
 
 # Training configuration
 TRAIN_CONFIG = {
-    'batch_size': 16,  # Smaller batch size for ImageNet (larger images)
+    'batch_size': 32,  # Batch size for face images
     'num_epochs': 50,
     'learning_rate': 1e-4,
     'save_every': 10,
@@ -25,15 +25,15 @@ TRAIN_CONFIG = {
 SAMPLE_CONFIG = {
     'num_samples': 64,
     'num_steps': 100,
-    'image_size': (128, 128),  # ImageNet image size (can use 64x64, 128x128, or 256x256)
+    'image_size': (64, 64),  # Face image size (can use 64x64, 128x128)
 }
 
 # Data configuration
 DATA_CONFIG = {
-    'data_dir': './data/imagenet',  # ImageNet directory
-    'batch_size': 16,
-    'image_size': 128,  # Resize ImageNet images to 128x128 (standard is 224, but 128 is more memory efficient)
-    'dataset_type': 'imagenet',  # Options: 'imagenet', 'celeba', 'face_folder'
+    'data_dir': './data',  # Data directory (CelebA will be downloaded here automatically)
+    'batch_size': 32,
+    'image_size': 64,  # Resize face images to 64x64 (CelebA supports up to 218x178)
+    'dataset_type': 'celeba',  # Options: 'celeba' (auto-download), 'face_folder', 'imagenet'
 }
 
 # Paths

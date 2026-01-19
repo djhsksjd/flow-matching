@@ -14,6 +14,9 @@ def load_celeba_data(batch_size=32, data_dir='./data', image_size=64, split='tra
     """
     Load CelebA dataset for face generation.
     
+    CelebA is a large-scale face attributes dataset with more than 200K celebrity images.
+    The dataset will be automatically downloaded (~1.3GB) if not present.
+    
     Args:
         batch_size: Batch size for data loaders
         data_dir: Directory to store/download CelebA dataset
@@ -23,30 +26,50 @@ def load_celeba_data(batch_size=32, data_dir='./data', image_size=64, split='tra
     Returns:
         data_loader: DataLoader for the specified split
     """
-    transform = transforms.Compose([
-        transforms.Resize((image_size, image_size)),
-        transforms.CenterCrop(image_size),
-        transforms.ToTensor(),
-    ])
+    print(f"Loading CelebA dataset (split: {split})...")
+    print(f"This may download ~1.3GB of data if not already present.")
+    print(f"Dataset will be stored in: {os.path.abspath(data_dir)}")
+    
+    # Data augmentation for training
+    if split == 'train':
+        transform = transforms.Compose([
+            transforms.Resize(int(image_size * 1.1)),
+            transforms.RandomCrop(image_size),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
+            transforms.ToTensor(),
+        ])
+    else:
+        transform = transforms.Compose([
+            transforms.Resize((image_size, image_size)),
+            transforms.CenterCrop(image_size),
+            transforms.ToTensor(),
+        ])
     
     try:
-        # Try to use torchvision's CelebA dataset
+        # Use torchvision's CelebA dataset (auto-downloads if needed)
+        print("Downloading/loading CelebA dataset...")
         dataset = datasets.CelebA(
             root=data_dir,
             split=split,
-            download=True,
+            download=True,  # Automatically download if not present
             transform=transform
         )
+        print(f"✅ Successfully loaded CelebA {split} set")
+        print(f"   Total images: {len(dataset):,}")
     except Exception as e:
-        print(f"Warning: Could not load CelebA dataset: {e}")
-        print("Please ensure CelebA dataset is available.")
+        print(f"❌ Error loading CelebA dataset: {e}")
+        print("\nTroubleshooting:")
+        print("1. Check your internet connection (first download requires ~1.3GB)")
+        print("2. Ensure you have enough disk space")
+        print("3. Try again - download may resume if interrupted")
         raise
     
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=(split == 'train'),
-        num_workers=2,
+        num_workers=4,  # More workers for faster loading
         pin_memory=True,
         drop_last=True  # Drop last incomplete batch
     )

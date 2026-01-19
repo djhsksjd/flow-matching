@@ -76,13 +76,13 @@ def train_flow_matching(
         
         # Generate and save samples (grid only)
         if (epoch + 1) % sample_every == 0:
-            # Use config image size or default to 128x128 for ImageNet
+            # Use config image size
             from .config import SAMPLE_CONFIG
-            img_size = SAMPLE_CONFIG.get('image_size', (128, 128))
+            img_size = SAMPLE_CONFIG.get('image_size', (64, 64))
             samples = flow_matching.sample(64, num_steps=num_sample_steps, 
                                          image_size=img_size, channels=3)
             save_path = os.path.join(save_dir, f"samples_epoch_{epoch+1}.png")
             visualize_samples(samples, save_path=save_path, nrow=8, 
-                            title=f"Generated Samples - Epoch {epoch+1}")
+                            title=f"Generated Face Samples - Epoch {epoch+1}")
     
     return flow_matching
