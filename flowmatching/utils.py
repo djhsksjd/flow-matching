@@ -73,8 +73,6 @@ def visualize_samples(samples, save_path=None, nrow=8, figsize=(12, 12), title=N
     return save_path
 
 
-
-
 def count_parameters(model):
     """
     Count the number of trainable parameters in a model.

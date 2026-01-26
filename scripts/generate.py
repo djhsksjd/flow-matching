@@ -1,25 +1,28 @@
 """
 Generate Samples from Trained Model
 
-This script loads a trained Flow Matching model and generates new face samples.
-Usage: python generate_samples.py [--checkpoint PATH] [--num_samples N] [--num_steps N]
+Generate new samples using a trained Flow Matching model.
+
+Usage:
+    python -m scripts.generate
+    python scripts/generate.py [--checkpoint PATH] [--num_samples N] [--num_steps N]
 """
 
-import torch
+import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import torch
 import argparse
 from flowmatching import UNet, FlowMatching
-from flowmatching.utils import (
-    visualize_samples,
-    load_checkpoint
-)
+from flowmatching.utils import visualize_samples, load_checkpoint
 from flowmatching.config import MODEL_CONFIG, SAMPLE_CONFIG, PATHS
 
 
 def main():
     parser = argparse.ArgumentParser(description='Generate samples from trained Flow Matching model')
     parser.add_argument('--checkpoint', type=str, default=None,
-                       help='Path to checkpoint file (default: latest checkpoint in results/)')
+                       help='Path to checkpoint file (default: latest checkpoint)')
     parser.add_argument('--num_samples', type=int, default=SAMPLE_CONFIG['num_samples'],
                        help=f'Number of samples to generate (default: {SAMPLE_CONFIG["num_samples"]})')
     parser.add_argument('--num_steps', type=int, default=SAMPLE_CONFIG['num_steps'],
@@ -33,28 +36,23 @@ def main():
     print("Generate Samples from Flow Matching Model")
     print("=" * 60)
     
-    # Device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
     
     # Find checkpoint
     if args.checkpoint is None:
         results_dir = PATHS['results_dir']
-        # Look for final checkpoint first
         final_checkpoint = os.path.join(results_dir, 'checkpoint_final.pt')
         if os.path.exists(final_checkpoint):
             args.checkpoint = final_checkpoint
-            print(f"Found final checkpoint: {args.checkpoint}")
         else:
-            # Find latest checkpoint
             checkpoints = [f for f in os.listdir(results_dir) if f.startswith('checkpoint_epoch_')]
             if checkpoints:
                 epochs = [int(f.split('_')[2].split('.')[0]) for f in checkpoints]
                 latest_idx = epochs.index(max(epochs))
                 args.checkpoint = os.path.join(results_dir, checkpoints[latest_idx])
-                print(f"Found latest checkpoint: {args.checkpoint}")
             else:
-                raise FileNotFoundError(f"No checkpoint found in {results_dir}. Please train a model first or specify --checkpoint.")
+                raise FileNotFoundError(f"No checkpoint found in {results_dir}")
     
     if not os.path.exists(args.checkpoint):
         raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
@@ -74,7 +72,7 @@ def main():
     print(f"Loaded checkpoint from epoch {epoch} (loss: {loss:.6f})")
     
     # Create FlowMatching instance
-    flow_matching = FlowMatching(model, device)
+    flow_matching = FlowMatching(model, device=device)
     
     # Generate samples
     image_size = SAMPLE_CONFIG['image_size']

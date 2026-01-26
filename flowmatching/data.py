@@ -58,11 +58,44 @@ def load_celeba_data(batch_size=32, data_dir='./data', image_size=64, split='tra
         print(f"✅ Successfully loaded CelebA {split} set")
         print(f"   Total images: {len(dataset):,}")
     except Exception as e:
-        print(f"❌ Error loading CelebA dataset: {e}")
-        print("\nTroubleshooting:")
-        print("1. Check your internet connection (first download requires ~1.3GB)")
-        print("2. Ensure you have enough disk space")
-        print("3. Try again - download may resume if interrupted")
+        error_msg = str(e)
+        print(f"❌ Error loading CelebA dataset: {error_msg}")
+        
+        # Check for specific error messages
+        if 'gdown' in error_msg.lower() and 'required' in error_msg.lower():
+            print("\n" + "="*60)
+            print("⚠️  Missing dependency: gdown")
+            print("="*60)
+            print("CelebA dataset requires 'gdown' to download from Google Drive.")
+            print("\nTo fix this, run:")
+            print("  pip install gdown")
+            print("\nOr install all requirements:")
+            print("  pip install -r requirements.txt")
+        elif 'too many users' in error_msg.lower() or 'viewed or downloaded' in error_msg.lower():
+            print("\n" + "="*60)
+            print("⚠️  Google Drive Download Limit Reached")
+            print("="*60)
+            print("The CelebA dataset file has reached Google Drive's download limit.")
+            print("This is a temporary restriction that usually resolves within 24 hours.")
+            print("\nAlternative Solutions:")
+            print("\n1. Wait and Retry (Recommended):")
+            print("   - Wait 24 hours and try again")
+            print("   - The download limit resets automatically")
+            print("\n2. Manual Download:")
+            print("   - Visit: https://drive.google.com/drive/folders/0B7EVK8r0v71pZjFTYXZWM3FlRnM")
+            print("   - Download the 'img_align_celeba' folder manually")
+            print("   - Extract to: data/celeb/img_align_celeba/")
+            print("\n3. Use Alternative Dataset:")
+            print("   - Switch to 'face_folder' dataset type in config.py")
+            print("   - Place your own face images in data/faces/")
+            print("\n4. Try Alternative Download Method:")
+            print("   - Use a VPN or different network")
+            print("   - Try downloading at a different time")
+        else:
+            print("\nTroubleshooting:")
+            print("1. Check your internet connection (first download requires ~1.3GB)")
+            print("2. Ensure you have enough disk space")
+            print("3. Try again - download may resume if interrupted")
         raise
     
     data_loader = DataLoader(

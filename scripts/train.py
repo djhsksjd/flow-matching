@@ -1,24 +1,30 @@
 """
-Main Training Script for Flow Matching on ImageNet
+Train Flow Matching Model
 
-This script trains a Flow Matching model to generate images using ImageNet dataset.
-Usage: python train_main.py
+Main training script for Flow Matching generative model.
+Supports CelebA, ImageNet, and custom face datasets.
+
+Usage:
+    python -m scripts.train
+    python scripts/train.py
 """
 
-import torch
+import sys
 import os
-from flowmatching import UNet, FlowMatching, load_imagenet_data, load_face_data, train_flow_matching
-from flowmatching.utils import (
-    visualize_samples,
-    count_parameters
-)
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import torch
+from flowmatching import UNet, FlowMatching, load_celeba_data, load_imagenet_data, load_face_data, train_flow_matching
+from flowmatching.utils import visualize_samples, count_parameters
 from flowmatching.config import MODEL_CONFIG, TRAIN_CONFIG, DATA_CONFIG, PATHS, SAMPLE_CONFIG
 
 
 def main():
     """Main training function."""
     print("=" * 60)
-    print("Flow Matching for ImageNet Image Generation")
+    print("Flow Matching for Face Image Generation")
     print("=" * 60)
     
     # Device
@@ -38,7 +44,6 @@ def main():
     
     try:
         if dataset_type == 'celeba':
-            # CelebA: Large-scale face dataset, auto-downloads
             train_loader = load_celeba_data(
                 batch_size=DATA_CONFIG['batch_size'],
                 data_dir=DATA_CONFIG['data_dir'],
@@ -48,7 +53,6 @@ def main():
             print(f"✅ Training samples: {len(train_loader.dataset):,}")
             print(f"✅ Image size: {DATA_CONFIG['image_size']}x{DATA_CONFIG['image_size']}")
         elif dataset_type == 'imagenet':
-            # ImageNet: Requires manual download and setup
             train_loader = load_imagenet_data(
                 batch_size=DATA_CONFIG['batch_size'],
                 data_dir=DATA_CONFIG['data_dir'],
@@ -59,7 +63,6 @@ def main():
             print(f"✅ Number of classes: {len(train_loader.dataset.classes)}")
             print(f"✅ Image size: {DATA_CONFIG['image_size']}x{DATA_CONFIG['image_size']}")
         elif dataset_type == 'face_folder':
-            # Custom face folder
             train_loader = load_face_data(
                 batch_size=DATA_CONFIG['batch_size'],
                 data_dir=DATA_CONFIG['data_dir'],
@@ -72,16 +75,19 @@ def main():
             raise ValueError(f"Unknown dataset_type: {dataset_type}. Use 'celeba', 'face_folder', or 'imagenet'")
         
     except Exception as e:
-        print(f"\n❌ Error loading dataset: {e}")
+        error_msg = str(e)
+        print(f"\n❌ Error loading dataset: {error_msg}")
+        
         if dataset_type == 'imagenet':
             print("\nImageNet setup instructions:")
             print("  1. Download ImageNet dataset")
             print("  2. Organize as: data/imagenet/train/class1/..., class2/..., etc.")
         elif dataset_type == 'celeba':
-            print("\nCelebA troubleshooting:")
-            print("  1. Check internet connection (requires ~1.3GB download)")
-            print("  2. Ensure sufficient disk space")
-            print("  3. The download will resume if interrupted")
+            if 'too many users' in error_msg.lower() or 'viewed or downloaded' in error_msg.lower():
+                print("\n💡 Quick Fix: Switch to custom face folder")
+                print("   Edit flowmatching/config.py:")
+                print("     DATA_CONFIG['dataset_type'] = 'face_folder'")
+                print("   Then place face images in: data/faces/")
         return
     
     # Create model
@@ -118,7 +124,6 @@ def main():
     print("Generating final samples...")
     print("=" * 60)
     
-    # Generate samples with higher quality (more steps)
     num_samples = SAMPLE_CONFIG['num_samples']
     num_steps = SAMPLE_CONFIG['num_steps']
     image_size = SAMPLE_CONFIG['image_size']
@@ -157,7 +162,7 @@ def main():
     print(f"  - {grid_path}")
     print(f"  - {final_checkpoint_path}")
     print("\nTo generate more samples, use:")
-    print("  python generate_samples.py")
+    print("  python -m scripts.generate")
 
 
 if __name__ == '__main__':
